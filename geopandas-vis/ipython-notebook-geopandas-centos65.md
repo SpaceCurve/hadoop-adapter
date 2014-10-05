@@ -39,7 +39,7 @@ e2c67481932ec9fb6ec3c0faadc004f715c4eef4  gdal-1.11.1.tar.gz
 
     This pulls in gcc,gfortran,make,etc.
 
-2. $ `adduser geotiff; chpasswd geotiff:geotiff; usermod -a -G wheel geotiff`
+2. $ `adduser geotiff; echo "geotiff:geotiff" | chpasswd; usermod -a -G wheel geotiff`
 
     This is the user account we will install Anaconda into and run IPython
     Notebook from. Only `libgeotiff` and `gdal` need to be installed into
@@ -72,7 +72,7 @@ e2c67481932ec9fb6ec3c0faadc004f715c4eef4  gdal-1.11.1.tar.gz
 
     	$ bash Anaconda-2.1.0-Linux-x86_64.sh
         follow the defaults
-		enable Anaconda your bash_profile
+		enable Anaconda in your bash_profile
 
 7. Confirm Anaconda works
 
@@ -84,24 +84,32 @@ e2c67481932ec9fb6ec3c0faadc004f715c4eef4  gdal-1.11.1.tar.gz
 
 8. Install PySAL and GeoPandas
 
-        $ pip intall fiona PySAL
+        $ pip install fiona PySAL
         $ pip install geopandas
 
-9. Create ipython notebook server with an open port enabling host to guest comms
+9. Create ipython notebook server with an open port enabling host to guest communication 
 
         $ ipython profile create nbserver
         # c.NotebookApp.ip = ''
         # security hole, anyone on local net can connect
+        # for this demo, I am assuming the VM is running with
+        # host only networking
         $ vim ~/.ipython/profile_nbserver/ipython_notebook_config.py
+
+    See [ipython public server](http://ipython.org/ipython-doc/1/interactive/public_server.html)
+    for instructions on how to setup passwords and SSL for IPython Notebook.
         
 # Launch ipython notebook
 
-[IPython Notebook](http://ipython.org/notebook.html) allows us to have a rich, interactive Python shell running in the SpaceCurve Quickstart VM accessible via a browser on our host OS.
+[IPython Notebook](http://ipython.org/notebook.html) allows us to have a rich,
+interactive Python shell running in the SpaceCurve Quickstart VM accessible via
+a browser on our host OS.
 
+Launch the IPython server on the SpaceCurve VM with:
 
 `$ ipython notebook --profile=nbserver`
 
-You should see
+You should see:
 
 ```
 2014-10-05 12:34:27.820 [NotebookApp] Using existing profile dir: u'/home/geotiff/.ipython/profile_nbserver'
