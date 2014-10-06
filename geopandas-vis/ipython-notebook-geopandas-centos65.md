@@ -6,14 +6,14 @@ than what is available in [EPEL](https://fedoraproject.org/wiki/EPEL) (Extra Pac
 Enterprise Linux) on Centos 6.5. To minimize the number of out-of-tree installable
 archives we will use the [Anaconda Python
 distribution](http://docs.continuum.io/anaconda/) from [Continuum](http://continuum.io/)
-which includes [numpy](http://www.numpy.org/)/[scipy](http://www.scipy.org/)/matplotlib
+which includes [numpy](http://www.numpy.org/)/[scipy](http://www.scipy.org/)/[matplotlib](http://matplotlib.org/)
 etc. Only two packages need to be installed on the base system to support GeoPandas
 specifically, the rest, including Anaconda, can run from within the user's home directory.
 
 **TK: It should be possible to install `libgeotiff` and `gdal` inside of the Anaconda
 directory**
 
-This install guide was created against the SpaceCurve Quickstart VM upgraded to Centos 6.5
+This install guide was created against the SpaceCurve Quickstart VM upgraded to Centos 6.5.
 
 ## Archives
 
@@ -35,34 +35,41 @@ e2c67481932ec9fb6ec3c0faadc004f715c4eef4  gdal-1.11.1.tar.gz
 
 ## Install Steps
 
-1. $ `yum groupinstall "Development Tools"`
+1. $ `yum groupinstall "Development Tools"` (as root)
 
     This pulls in gcc,gfortran,make,etc.
 
-2. $ `adduser geotiff; echo "geotiff:geotiff" | chpasswd; usermod -a -G wheel geotiff`
+2. Create the `geotiff` user account
 
     This is the user account we will install Anaconda into and run IPython
     Notebook from. Only `libgeotiff` and `gdal` need to be installed into
     the base system. Everything else will be installed with Anaconda and pip
-    in the geotiff home directory.
+    in the `geotiff` home directory.
 
-3. $ `echo "/usr/local/lib" >> /etc/ld.so.conf.d/locallib.conf`
+        $ adduser geotiff
+        $ echo "geotiff:geotiff" | chpasswd
+        $ usermod -a -G wheel geotiff
+
+
+3. $ `echo "/usr/local/lib" >> /etc/ld.so.conf.d/locallib.conf` (as root)
 
 	This allows us to link against the shared libraries that `libgeotiff` and `gdal`
     install into `/usr/local/lib`
 
-4. Install libgeotiff-1.2.5
+    The remained of the steps can be done using the `geotiff` account.
 
-        $ yum install libtiff-devel
+4. Install `libgeotiff`
+
         # depedency for libgeotiff
-        $ tar xvf libgeotiff-1.2.5.tar.gz 
+        $ sudo yum install libtiff-devel
+        $ tar xvf libgeotiff-1.2.5.tar.gz; cd libgeotiff-1.2.5
         $ ./configure; make -j4
         $ sudo make install
         $ sudo ldconfig
 
-5. Install gdal-1.11.1
+5. Install `gdal`
 
-        $ tar xvf gdal-1.11.1.tar.gz 
+        $ tar xvf gdal-1.11.1.tar.gz; cd gdal-1.11.1
         $ ./configure --with-geotiff=yes; make -j4
         $ sudo make install
         $ sudo ldconfig
@@ -71,12 +78,12 @@ e2c67481932ec9fb6ec3c0faadc004f715c4eef4  gdal-1.11.1.tar.gz
 6. Install Anaconda
 
     	$ bash Anaconda-2.1.0-Linux-x86_64.sh
-        follow the defaults
-		enable Anaconda in your bash_profile
+        # follow the defaults
+		# enable Anaconda in your bash_profile
 
 7. Confirm Anaconda works
 
-        logout; login, pip and python should be in path
+        # logout; login, pip and python should be in path
         $ which python
         ~/anaconda/bin/python
         $ which pip
@@ -90,9 +97,10 @@ e2c67481932ec9fb6ec3c0faadc004f715c4eef4  gdal-1.11.1.tar.gz
 9. Create ipython notebook server with an open port enabling host to guest communication 
 
         $ ipython profile create nbserver
+        # make the edit
         # c.NotebookApp.ip = ''
-        # security hole, anyone on local net can connect
-        # for this demo, I am assuming the VM is running with
+        # SECURITY ALERT, anyone on the local net can connect
+        # for this demo, we are assumming the VM is running with
         # host only networking
         $ vim ~/.ipython/profile_nbserver/ipython_notebook_config.py
 
@@ -134,5 +142,16 @@ On the host machine navigate to http://spacecurve:8888/ and open the `SpaceCurve
 When the notebook is loaded the code will run and the data will be plotted inline.
 
 ![](images/geopandas-vis-1200.png)
+
+You can copy and paste the entire block of code below into a single IPython Notebook cell and execute it via `shift-enter`. The
+[IPython reference](http://ipython.org/ipython-doc/2/interactive/reference.html) explains full keyboard usage of the shell.
+
+```python
+%matplotlib inline
+import geopandas
+dfx = geopandas.read_file("hive-result-collection.geojson")
+dfx["cnt"] = dfx["cnt"].astype(int) 
+dfx.plot(column="cnt", colormap="OrRd", scheme="quantiles")
+```
 
 
