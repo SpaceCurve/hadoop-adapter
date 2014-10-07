@@ -1,4 +1,11 @@
-# Installing GeoPandas and IPython Notebook in Centos 6.5
+# Installing GeoPandas and IPython Notebook on Centos 6.5
+
+[GeoPandas](http://geopandas.org/) is a Python library for working with geospatial
+data. [IPython](http://ipython.org/) is a rich interactive shell environment
+for Python that enables tab completion and inline graphics. This document outlines
+how to install both and their required dependencies on the SpaceCurve QuickStart VM
+which runs on Centos 6.5. At the end of the document we show how to run IPython
+and geopandas to plot some geospatial data extracted from SpaceCurve.
 
 The dependency graph for installing [Matplotlib](http://matplotlib.org/) and
 [GeoPandas](http://geopandas.org/) for geospatial visualization requires newer libraries
@@ -13,7 +20,7 @@ specifically, the rest, including Anaconda, can run from within the user's home 
 **TK: It should be possible to install `libgeotiff` and `gdal` inside of the Anaconda
 directory**
 
-This install guide was created against the SpaceCurve Quickstart VM upgraded to Centos 6.5.
+This install guide was created against the SpaceCurve QuickStart VM upgraded to Centos 6.5.
 
 ## Archives
 
@@ -25,7 +32,7 @@ wget http://download.osgeo.org/gdal/1.11.1/gdal-1.11.1.tar.gz
 wget http://09c8d0b2229f813c1b93-c95ac804525aac4b6dba79b00b39d1d3.r79.cf1.rackcdn.com/Anaconda-2.1.0-Linux-x86_64.sh
 ```
 
-`sha1sum` of the above files
+`sha1sum` of the above files, please ensure these match
 
 ```
 38b10070374636fedfdde328ff1c9f3c6e8e581f  libgeotiff-1.2.5.tar.gz
@@ -37,7 +44,7 @@ e2c67481932ec9fb6ec3c0faadc004f715c4eef4  gdal-1.11.1.tar.gz
 
 1. $ `yum groupinstall "Development Tools"` (as root)
 
-    This pulls in gcc,gfortran,make,etc.
+    This pulls in gcc,gfortran,make,etc. for building `libgeotiff` and `gdal`.
 
 2. Create the `geotiff` user account
 
@@ -56,7 +63,7 @@ e2c67481932ec9fb6ec3c0faadc004f715c4eef4  gdal-1.11.1.tar.gz
 	This allows us to link against the shared libraries that `libgeotiff` and `gdal`
     install into `/usr/local/lib`
 
-    The remained of the steps can be done using the `geotiff` account.
+    The remaining steps should be done using the `geotiff` account.
 
 4. Install `libgeotiff`
 
@@ -110,7 +117,7 @@ e2c67481932ec9fb6ec3c0faadc004f715c4eef4  gdal-1.11.1.tar.gz
 # Launch ipython notebook
 
 [IPython Notebook](http://ipython.org/notebook.html) allows us to have a rich,
-interactive Python shell running in the SpaceCurve Quickstart VM accessible via
+interactive Python shell running in the SpaceCurve QuickStart VM accessible via
 a browser on our host OS.
 
 Launch the IPython server on the SpaceCurve VM with:
