@@ -26,6 +26,7 @@ ArcGIS> select * from schema.earthquakes as e where e."geometry".st_within(st_ge
 """
 
 SPACECURVE_IP = os.environ['SPACECURVE_IP']
+print "using %s for SPACECURVE_IP" % (SPACECURVE_IP)
 
 def spacecurve_query(url):
     q = urllib2.Request(url)

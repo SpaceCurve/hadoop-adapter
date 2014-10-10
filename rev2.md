@@ -159,7 +159,9 @@ And two archives:
 
 Type:
 
-`$hdfs dfs -ls /user`
+```
+$ hdfs dfs -ls /user
+```
 
 Output:
 
@@ -180,7 +182,7 @@ from SpaceCurve and the job output will reside here.
 Type:
 
 ```
-$hdfs dfs -mkdir /user/hduser
+$ hdfs dfs -mkdir /user/hduser
 ```
 
 Running the bare command `hdfs dfs -ls` should not return an error. 
@@ -265,9 +267,9 @@ Type:
 
 
 ```    
-ssh spacecurve@<SPACECURVE IP>
--- login with password 'spacecurve'
-tar xvf spacecurve-prep.tar.gz
+$ ssh spacecurve@<SPACECURVE IP>
+; ## login with password 'spacecurve'
+$ tar xvf spacecurve-prep.tar.gz
 ```
 
 Output:
@@ -284,8 +286,6 @@ spacecurve-prep/spacecurve-reset.sh
 spacecurve-prep/wholething.sh
 spacecurve-prep/hive_result/hive_result.sql
 spacecurve-prep/hive_result/load_schema.sh
-spacecurve-prep/DGG/._4h0-grid.json
-spacecurve-prep/DGG/4h0-grid.json
 spacecurve-prep/DGG/grid.json.old
 spacecurve-prep/DGG/grid.sql
 spacecurve-prep/DGG/load_dgg.sh
@@ -333,7 +333,7 @@ data is in SpaceCurve you can either, from within SpaceCurve VM,
 Type:
 
 ```
-curl -s 'http://localhost:8080/ArcGIS/select%20*%20from%20schema.earthquakes;' | wc -l
+$ curl -s 'http://localhost:8080/ArcGIS/select%20*%20from%20schema.earthquakes;' | wc -l
 ```
 
 Output:
@@ -342,14 +342,14 @@ Output:
 17939
 ```
 
-or load the url, http://<SPACECURVE IP>:8080/ArcGIS/schema/earthquakes in your browser.
+or load the url, http://SPACECURVE:8080/ArcGIS/schema/earthquakes in your browser.
 
 To view the first record (from inside the SCDB VM)
 
 Type:
 
 ```
-curl -s -H "Accept: application/noheader+json" 127.1:8080/ArcGIS/schema/earthquakes | jq "." | more
+$ curl -s -H "Accept: application/noheader+json" 127.1:8080/ArcGIS/schema/earthquakes | jq "." | more
 ```
 
 Output:
@@ -387,22 +387,30 @@ Output:
 
 # Hadoop Data Load and Job
 
-We will [SSH](http://en.wikipedia.org/wiki/Secure_Shell) into the Hortonworks VM, unpack the archive and run the script
-which will:
+At this point we have two VMs running, we created the two archives and have setup
+the SpaceCurve VM with
 
-1. Sync data from SpaceCurve to HDFS using a MapReduce job
-2. Create schemas, run Hive job on cluster
-3. Sync data from HDFS to SpaceCurve
+* Earthquake data (reusing the existing ~/VM example dataset)
+* Discrete Global Grid Data for parallelizing the export
+* Output schema for results from Hive
+
+The rest of the tutorial will occur on the Hortonworks VM.
+
+We will [SSH](http://en.wikipedia.org/wiki/Secure_Shell) into the Hortonworks VM,
+unpack the archive and run three scripts that will:
+
+1. Sync data from SpaceCurve to HDFS using a MapReduce job. [stream-sync.sh](src/hadoop-spacecurve-sync/1-dfs-sync/stream-sync.sh) 
+2. Create Hive schemas, run Hive job on cluster. [whole-thing.sh](src/hadoop-spacecurve-sync/2-hive-job/whole-thing.sh)
+3. Sync data from HDFS to SpaceCurve [upload-direct.sh](src/hadoop-spacecurve-sync/3-hive-to-scdb/upload-direct.sh) 
     
-
 ## Login and Unpack
 
-Login to the HortonWorks VM (from now on HortonWorks)
+Login to the Hortonworks VM (from now on HVM)
 
 Type:
 
 ```
-ssh hduser@<HortonWorks>
+$ ssh hduser@<HVM>
 ```
 
 To unpack the archive, type:
@@ -436,38 +444,18 @@ hadoop-spacecurve-sync/2-hive-job/whole-thing.sql
 hadoop-spacecurve-sync/2-hive-job/jars/esri-geometry-api-1.2.jar
 hadoop-spacecurve-sync/2-hive-job/jars/spatial-sdk-hive-1.0.3-SNAPSHOT.jar
 hadoop-spacecurve-sync/2-hive-job/jars/spatial-sdk-json-1.0.3-SNAPSHOT.jar
-hadoop-spacecurve-sync/1-dfs-sync/4h0-earthquake-cell.json
-hadoop-spacecurve-sync/1-dfs-sync/4h1-earthquake-cell.json
-hadoop-spacecurve-sync/1-dfs-sync/4h2-earthquake-cell.json
-hadoop-spacecurve-sync/1-dfs-sync/4h3-earthquake-cell.json
 hadoop-spacecurve-sync/1-dfs-sync/control-dir/
 hadoop-spacecurve-sync/1-dfs-sync/count-url.sh
 hadoop-spacecurve-sync/1-dfs-sync/dgg.py
-hadoop-spacecurve-sync/1-dfs-sync/dgg.pyc
 hadoop-spacecurve-sync/1-dfs-sync/gen_control.py
 hadoop-spacecurve-sync/1-dfs-sync/mapper.py
 hadoop-spacecurve-sync/1-dfs-sync/stream-sync.sh
-hadoop-spacecurve-sync/1-dfs-sync/test.json
 hadoop-spacecurve-sync/1-dfs-sync/xdoop.sh
-hadoop-spacecurve-sync/1-dfs-sync/control-dir/4h0.json
-hadoop-spacecurve-sync/1-dfs-sync/control-dir/control-0000.json
-hadoop-spacecurve-sync/1-dfs-sync/control-dir/control-0001.json
-hadoop-spacecurve-sync/1-dfs-sync/control-dir/control-0002.json
-hadoop-spacecurve-sync/1-dfs-sync/control-dir/control-0003.json
-hadoop-spacecurve-sync/1-dfs-sync/control-dir/control-0004.json
-hadoop-spacecurve-sync/1-dfs-sync/control-dir/control-0005.json
-hadoop-spacecurve-sync/1-dfs-sync/control-dir/control-0006.json
-hadoop-spacecurve-sync/1-dfs-sync/control-dir/control-0007.json
-hadoop-spacecurve-sync/1-dfs-sync/control-dir/control-0008.json
-hadoop-spacecurve-sync/1-dfs-sync/control-dir/control-0009.json
-hadoop-spacecurve-sync/1-dfs-sync/control-dir/control-0010.json
-hadoop-spacecurve-sync/1-dfs-sync/control-dir/control-0011.json
-hadoop-spacecurve-sync/1-dfs-sync/control-dir/pp.txt
 ```
 
-Configure the IP address for the SpaceCurve database so that Hadoop can read
-and write data to it by editing the file `SPACECURVE_IP.sh` in the newly
-unpacked archive.
+Next we need to configure the IP address for the SpaceCurve database so that
+Hadoop can read and write data to it by editing the file `SPACECURVE_IP.sh` in
+the newly unpacked archive.
 
 Type:
 
@@ -494,21 +482,35 @@ Output:
 17939
 ```
 
-## SpaceCurve HDFS Sync
+## SpaceCurve to HDFS Sync via MapReduce
 
-Sync data from SpaceCurve to HDFS (Hadoop Distributed FileSystem) by finding
-all of the earthquakes contained within each grid cell. The number of grid cells
-controls the number of individual map tasks. The resolution of the grid can be
-used to balance the parallelism and amount of data handled by each map task. Too
-small of a grid cell and we will have lots of small files which is an in efficient
-use of HDFS and Hadoop. Too large of a grid cell and parallelism in loading the
-data will be reduced. In our case, with our small amount of demo data, we want
-the sync job to be as quick as possible so we use only 12 cells.
+After configuring the `SPACECURVE_IP` we will now run a MapReduce job that
+will query SpaceCurve and extract a set of earthquakes contained within each
+grid cell to HDFS. The number of grid cells controls the number of individual
+map tasks with each map task creating an earthquake file on HDFS. The resolution of the grid can be used to balance the parallelism
+and amount of data handled by each map task. Too small of a grid cell and we
+will have lots of small files which is an in efficient use of HDFS and
+Hadoop. Too large of a grid cell and parallelism in loading the data will be
+reduced. In our case, with our small amount of demo data, we want the sync
+job to be as quick as possible so we use only 12 cells. 
+
+In the [1-dfs-sync](src/hadoop-spacecurve-sync/1-dfs-sync/) we will be running
+[stream-sync.sh](src/hadoop-spacecurve-sync/1-dfs-sync/stream-sync.sh) which will
+
+1. Generate the control files by querying the Discrete Global Grid Data
+2. Launch [mapper.py](src/hadoop-spacecurve-sync/1-dfs-sync/) which will read the
+   control files
+Type:
 
 ```
-cd 1-dfs-sync
-./stream-sync.sh 
-using 172.16.77.120 for SpaceCurve IP
+$ cd 1-dfs-sync
+$ ./stream-sync.sh 
+```
+
+Output:
+
+```
+using 192.168.217.135 for SpaceCurve IP
 ; ## output elided
 ...
 	Map-Reduce Framework
@@ -556,7 +558,7 @@ Found 13 items
 -rw-r--r--   1 yarn hdfs      97368 2014-09-25 13:02 output/job1/eeb7a7bd4bc73a9c3559ea7e9c99607c993550c5.json
 ```
 
-We have two output directories:
+We have two output directories on HDFS:
 
     output/earthquake/...
     output/job1/...
@@ -564,17 +566,24 @@ We have two output directories:
 The `output/earthquake` directory contains `stdout` from each task, in our case
 we printed the command that was run. You can look at the contents with:
 
-```hdfs dfs -cat output/earthquake/part-00000```
+Type:
+
+`$ hdfs dfs -cat output/earthquake/part-00000`
+
+Output:
 
 ```
 curl -s -H "Accept: application/noheader+json" "http://172.16.77.120:8080/ArcGIS/select%20%2A%20from%20schema.earthquakes%20as%20e%20where%20e.%22geometry%22.st_within%28st_geography%28%27POLYGON%28%28101.25%20-69.094843%2C%20-78.75%20-69.094842%2C%20-123.75%20-35.264389%2C%20-168.75%20-20.905157%2C%20146.25%20-35.26439%2C%20101.25%20-69.094843%29%29%27%29%29%3B" | /usr/bin/hdfs dfs -put - /user/hduser/output/job1/d81cf1c8226112904008ce9c4ef04ef4743d9af3.json
 ```
 
 Which is the command generated by the control file used as input to the map task.
+To see the contents of the generated control files, type:
 
 ```
 hdfs dfs -cat temp/earthquake/control/control-0000.json | jq "."
 ```
+
+Output:
 
 ```{.json} 
 {
@@ -588,6 +597,8 @@ hdfs dfs -cat temp/earthquake/control/control-0000.json | jq "."
 ```
 
 Each control file corresponds to a grid cell and a map task.
+
+The directory 
 
 The `output/job1/...` directory is the contents of the queries run against SpaceCurve
 by each map task. This is verbatim GeoJSON query result.
