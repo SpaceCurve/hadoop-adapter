@@ -6,28 +6,34 @@
 **TK: This document is very much a work in progress. TK is used as a search
 canary for items that been to be addressed before publication**
 
-This document outlines the mechanics of export/import between `SCDB` and
-`HDFS` so that the SpaceCurve database data can be accessible to the
-Hadoop stack.
+This document outlines the mechanics of export/import between SpaceCurve and
+Hadoop so that the SpaceCurve data can be accessible to the Hadoop stack.
 
 [Hadoop](http://en.wikipedia.org/wiki/Apache_Hadoop) is the defacto open source
 standard for processing large amounts of data (gigabytes to petabytes) on 
 clusters of commodity hardware. Hadoop contains two major systems the
-compute layer which is managed by Yarn and the storage layer, Hadoop Distributed
-File System or HDFS.
+compute layer which is managed by [Yarn](http://hadoop.apache.org/docs/current/hadoop-yarn/hadoop-yarn-site/YARN.html)
+and the storage layer, [Hadoop Distributed File System](http://hortonworks.com/hadoop/hdfs/) (HDFS).
 
-This document is for anyone that would like to understand and implement data
-synchronization between SCDB and Hadoop/HDFS. By integrating at the HDFS layer
+This document is for anyone that would like to understand and implement parallel data
+synchronization between SpaceCurve and Hadoop/HDFS. By integrating at the HDFS layer
 we enable all systems and tools that interact with HDFS to be utilized in their
-normal workflows without being tied directly to SCDB. Bidirectional HDFS syncing
-opens up SCDB data to the most possible users of the Hadoop ecosystem (MapReduce, 
-Pig, Hive, Streaming and Spark).
+normal workflows without being tied directly to SpaceCurve. Bidirectional HDFS syncing
+opens up SpaceCurve data to the most possible users of the Hadoop ecosystem ([MapReduce](http://hadoop.apache.org/docs/current/hadoop-mapreduce-client/hadoop-mapreduce-client-core/MapReduceTutorial.html#Overview), 
+[Pig](http://en.wikipedia.org/wiki/Pig_(programming_tool)), [Hive](http://en.wikipedia.org/wiki/Apache_Hive),
+[Streaming](http://hadoop.apache.org/docs/current/hadoop-mapreduce-client/hadoop-mapreduce-client-core/HadoopStreaming.html)
+and [Spark](https://spark.apache.org/)).
 
-We will walk through, step-by-step the process and the implementation of
-exporting earthquake data from SCDB via [grids](http://discreteglobalgrids.org/),
+We will walk through the process and implementation of
+exporting earthquake data from SpaceCurve via [grids](http://discreteglobalgrids.org/),
 processing it with [Apache Hive](http://en.wikipedia.org/wiki/Apache_Hive) to
 find the total number of occurrences by California county and then importing the
-results back into SCDB. 
+results back into SpaceCurve. 
+
+This document assumes some familiarity with the command line and virtualization
+products ([VMWare Fusion](https://www.vmware.com/products/fusion-pro/features.html)
+or [Workstation](http://www.vmware.com/products/workstation)) as we will using
+two VMs, SpaceCurve QuickStart VM and [Hortonworks Sandbox](http://hortonworks.com/products/hortonworks-sandbox/).
 
 ![Place Holder: Earthquake Data](images/ph-earthquake.jpeg)
 
@@ -35,74 +41,113 @@ results back into SCDB.
 
 ## How it works
 
-### Export from SpaceCurve
+This section gives a high level overview of the tutorial, with following sections
+diving into the details of the individual steps.
 
-![Place Holder: SpaceCurve HDFS Copy](images/ph-scdb-hdfs.jpeg)
+SpaceCurve is a distributed, clustered, geospatial database with a streaming
+HTTP interface, for most of this tutorial we will be using
+[curl](http://en.wikipedia.org/wiki/CURL) to export and import data.
 
-SpaceCurve provides a clean HTTP interface for querying for data in GeoJSON format. 
-We will use this in a Streaming MapReduce job to extract our data in question
-and store it in HDFS. 
+The curl command:
 
-* Extract grid data (we need to import this into SCDB)
-* Generate a set of queries, one per grid that joins your data
-  with grid data.
-* Stream that joined grid data from SpaceCurve into HDFS
-* Data is stored on disk in line oriented GeoJSON format as a stream of
-  records, it is NOT inside of an object.
-    
-### Processing with Hive
+```
+$ curl -s -H "Accept: application/noheader+json" 127.1:8080/ArcGIS/schema/earthquakes \
+	| hdfs dfs -put /path/on/hdfs/earthquakes.json
+```
 
-Hive is used as the example data processor, we could have also used Java MapReduce,
-Pig or a Streaming job. **TK: mention latencies later** 
+can extract all the data from the `earthquakes` table and copy it to HDFS.
+But this will only operate as fast as the combination of a single SpaceCurve
+and HDFS node. By partitioning the data using the [Discrete Global
+Grids](http://discreteglobalgrids.org/) and executing many such queries in
+parallel, one for each grid cell, we can leverage the horizontal scaling
+capabilities of SpaceCurve and HDFS. For small data sets of less than a
+gigabyte this technique is not needed as the startup costs for the MapReduce
+job are larger than the copy itself. While we are using a reduced data set for
+expediency, we will be using a parallel [MapReduce job](src/hadoop-spacecurve-sync/1-dfs-sync)
+for exporting data from SpaceCurve.
 
-The files stored in HDFS are the raw output of queries run against SpaceCurve with
-no modification. We can use the JSON mapping capabilities in Hive (TK: modified
-GeoJSON SerDe) to create tables that represent the data stored in each GeoJSON record.
+Once the data resides on HDFS we will configure Hive tables for [California
+counties](src/hadoop-spacecurve-sync/2-hive-job/1-esri-setup.sql) and
+[Earthquakes](src/hadoop-spacecurve-sync/2-hive-job/2-earthquake.sql) that
+create a SQL structure over the underlying data using [GeoJsonSerde](https://github.com/SpaceCurve/spatial-framework-for-hadoop/blob/spacecurve-geojson-serdes/hive/src/main/java/com/esri/hadoop/hive/serde/GeoJsonSerde.java)
+to allow us to use the raw GeoJSON returned from SpaceCurve.
 
-For doing geospatial computations we are using the [ESRI Spatial Framework for Hadoop](https://github.com/Esri/spatial-framework-for-hadoop).
-
-### Import to SpaceCurve
-
-The import into SpaceCurve will use the same technique as the export. A Streaming
-MapReduce job reads the data from the output of the Hive queries, turns it into
-GeoJSON and POSTs it to the HTTP endpoint for SCDB.  
-
-
-## Preconditions
-    
-    - Running SpaceCurve Quickstart VM
-    - [Hortonworks Sandbox VM](http://hortonworks.com/products/hortonworks-sandbox/)
-
-## Expected Outcome
-
-![California County Earthquake Map](images/california-earthquake-map.png)
+[Apache Hive](http://hortonworks.com/hadoop-tutorial/how-to-process-data-with-apache-hive/)
+is a SQL engine that runs on top of Hadoop as a user level program, meaning
+any user with access to Hadoop can run Hive, it doesn't need to be installed
+on the cluster. Hive works by defining mappings for data on HDFS to SQL
+tables, user queries are turned into Java MapReduce programs that run as a
+sequence of `map` and `reduce` tasks orchestrated by the [Hive shell](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Cli).
+The SQL abstraction is an excellent fit for the
+[MapReduce](http://en.wikipedia.org/wiki/MapReduce) paradigm allowing the end
+user to concentrate on processing her data. Like most SQL engines, Hive has a
+mechanism for running user code as part of a query called [Hive
+UDFs](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+UDF)
+and we will be using the [ESRI Spatial Framework for
+Hadoop](https://github.com/Esri/spatial-framework-for-hadoop) to use the following
+GIS functions:
 
 
-## Time Required
+* ST_Point
+* ST_Contains
+* ST_AsText
+* [ST_Within](http://postgis.org/docs/ST_Within.html)
+* ST_AsGeoJson
 
-**TK: either remove this section or get an average over a couple runs**
+Configured in this way, Hive with the ESRI UDFs feels a lot like SpaceCurve or
+PostGIS.
 
-----
+Once the code and the data has been configured in Hive, the query looks like any
+other SQL GIS query, [hadoop-spacecurve-sync/2-hive-job/3-job.sql](src/hadoop-spacecurve-sync/2-hive-job/3-job.sql)
 
-# Setup 
+```
+create table job2_earthquake_agg as
+SELECT name, ST_AsGeoJson(boundaryshape) as geojson_boundary, count(*) cnt FROM counties
+JOIN earthquake
+WHERE ST_Contains(counties.boundaryshape, earthquake.shape)
+GROUP BY counties.name, counties.boundaryshape
+ORDER BY cnt desc;
+```
+
+The above query finds the count of earthquakes within each California county.
+We use the [county data](https://github.com/Esri/gis-tools-for-hadoop/blob/master/samples/data/counties-data/california-counties.json) from
+the [esri gis tools for hadoop](https://github.com/Esri/gis-tools-for-hadoop) saving the
+result to a Hive table on HDFS @ `hdfs:///apps/hive/warehouse/job2_earthquake_agg/000000_0`.
+By using `ST_AsGeoJson` from within the query, we have access to an ASCII
+representation of the geometry instead internal binary format used by the
+ESRI tools making it much easier to generate valid GeoJSON.
+
+The native format for data stored in Hive is to delimit the columns with
+ctrl-a chars (literal 1 byte). Since the amount of data in the resulting
+table is only 21 rows, to sync the output of the job to SpaceCurve we run the
+HDFS `cat` command through a [Python filter](src/hadoop-spacecurve-sync/3-hive-to-scdb/geo_filter.py)
+that converts each Hive row into a GeoJSON object that is [POSTed](src/hadoop-spacecurve-sync/3-hive-to-scdb/upload-direct.sh) into
+SpaceCurve via `curl`. Had the resulting data been on the order of gigabytes, we
+could have constructed an analogous job to the [streaming mapreduce job](src/hadoop-spacecurve-sync/1-dfs-sync/)
+used to copy data into HDFS, only with the source and the destinations reversed.
+
+## VM Setup
+
+**TK: possibly extract this to another doc**
 
 In this demo we will be run using two VMs:
 
 1. SpaceCurve QuickStart VM for the SpaceCurve database (Earthquake and Grid data)
 2. [Hortonworks Sandbox VM](http://hortonworks.com/products/hortonworks-sandbox/)
+   for Hadoop, Hive and HDFS.
     
+**TK: screenshots of Hortonworks VM extraction and setup**	
+	
 And two archives:
 
 1. `spacecurve-prep.tar.gz` for loading earthquake and grid data into SpaceCurve
-2. `hadoop-spacecurve-sync.tar.gz` for 
-    
-**TK: assuming VMWare Fusion or similar (Workstation, Player, etc)**
+2. `hadoop-spacecurve-sync.tar.gz` for export, Hive job and import to SpaceCurve
 
-## SpaceCurve Quickstart VM Setup
+### SpaceCurve Quickstart VM Setup
 
-1. unpack, login, start SpaceCurve
+1. unpack, login, start SpaceCurve, see SpaceCurve QuickStart VM instructions
     
-## Hortonworks Sandbox VM Setup
+### Hortonworks Sandbox VM Setup
 
 1. unpack and start
 2. login (root/hadoop)
@@ -112,8 +157,13 @@ And two archives:
 3. logout, login as hduser
 4. create hdfs home directory for hduser
 
+Type:
+
+`$hdfs dfs -ls /user`
+
+Output:
+
 ```
-$hdfs dfs -ls /user
 Found 7 items
 drwxrwx---   - ambari-qa hdfs           0 2014-04-21 07:26 /user/ambari-qa
 drwxr-xr-x   - guest     guest          0 2014-04-22 07:21 /user/guest
@@ -124,20 +174,81 @@ drwxrwxr-x   - oozie     hdfs           0 2014-04-21 07:18 /user/oozie
 drwxr-xr-x   - root      root           0 2014-04-22 07:20 /user/root    
 ```
 
+Next we need to create the home directory for the `hduser`, all the data exported
+from SpaceCurve and the job output will reside here.
+
+Type:
+
 ```
 $hdfs dfs -mkdir /user/hduser
 ```
 
 Running the bare command `hdfs dfs -ls` should not return an error. 
 
-## Sync the Archives
+### Archive Generation and Sync
 
-1. copy `spacecurve-prep.tar.gz` to your SpaceCurve VM
-    `scp spacecurve-prep.tar.gz spacecurve@<SPACECURVE IP>:
-2. copy `hadoop-spacecurve-sync.tar.gz` to your Hortonworks VM
-    `scp hadoop-spacecurve-sync.tar.gz hduser@<HORTONWORKS IP>:
-        
-# SpaceCurve Data Load
+The two archives are generated from the [src dir](src) is this repository via a Makefile.
+Once your VMs are up and you have their IP addresses, you can edit the [Makefile](src/Makefile)
+to point to your two VMs by replacing `HADOOP_ADDR` and `SPACECURVE_ADDR` with
+the names or IP addresses of your two VMs. You can find the IP address by logging
+into a VM, opening a terminal window (Applications->System Tools->Terminal)
+
+![](images/centos-terminal.png)
+
+
+![](images/centos-terminal-ifconfig.png)
+
+Type:
+
+`$ ifconfig`
+
+Output:
+
+```
+eth0      Link encap:Ethernet  HWaddr 00:0C:29:5F:1C:2C  
+          inet addr:192.168.217.133  Bcast:192.168.217.255  Mask:255.255.255.0
+          inet6 addr: fe80::20c:29ff:fe5f:1c2c/64 Scope:Link
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:14715 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:5491 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000 
+          RX bytes:13143733 (12.5 MiB)  TX bytes:2035533 (1.9 MiB)
+```
+
+Your IP address will be the value after `addr` on line:
+
+```
+          inet addr:192.168.217.133  Bcast:192.168.217.255  Mask:255.255.255.0
+```
+
+After editing the `Makefile` with the IP addresses of your VMs, generate the
+archives and sync them.
+
+Type:
+
+`$ make package sync`
+
+Output:
+
+```
+... output elided ...
+a spacecurve-prep/DGG/grid.sql
+a spacecurve-prep/DGG/load_dgg.sh
+a spacecurve-prep/DGG/orient.py
+scp hadoop-spacecurve-sync.tar.gz hduser@192.168.217.133:
+hadoop-spacecurve-sync.tar.gz                                     100% 1236KB   1.2MB/s   00:00    
+scp spacecurve-prep.tar.gz spacecurve@spacecurve:
+spacecurve-prep.tar.gz                                            100%  537KB 536.9KB/s   00:00    
+```
+
+At this point you should have one archive on each VM:
+
+	Hortonworks Sandbox VM / hadoop-spacecurve-sync.tar.gz
+	SpaceCurve QuickStart VM / spacecurve-prep.tar.gz
+
+# SpaceCurve Prep and Data Load
+
+This phase occurs on the SpaceCurve VM. 
 
 We will ssh into SpaceCurve, unpack the archive and run the script which will
 
@@ -145,13 +256,23 @@ We will ssh into SpaceCurve, unpack the archive and run the script which will
 existing database.
 
 2. Load in the earthquake data from the ~/VM data folder that already exists
-on your SpaceCurve quickstart VM.
+on your SpaceCurve QuickStart VM.
 
 3. Create a schema for the results from our Hadoop/Hive job.
 
+
+Type:
+
+
 ```    
 ssh spacecurve@<SPACECURVE IP>
-tar xvf spacecurve-prep.tar.gz 
+-- login with password 'spacecurve'
+tar xvf spacecurve-prep.tar.gz
+```
+
+Output:
+
+``` 
 spacecurve-prep/
 spacecurve-prep/1-earthquake-load.sh
 spacecurve-prep/2-global-grid-load.sh
@@ -174,12 +295,20 @@ spacecurve-prep/DGG/orient.py
 We will cd into `spacecurve-prep` and run `wholething.sh` which will complete
 steps 1 through 3 above.
 
+Type:
+
 ```
-[spacecurve@localhost spacecurve-prep]$ ./wholething.sh 
+$ cd spacecurve-prep
+$ ./wholething.sh
+```
+
+Output:
+
+
+```
 DESTROY all SpaceCurve data??
 1) Yes
 2) No
-#? 1
 stopping spacecurve
 ~/VM ~/spacecurve-prep
 cleaning
@@ -192,28 +321,40 @@ init
 [23268] running /opt/spacecurve/scdb/1.2.0.0-202_c0ed0_HEAD_release/bin//worker -y -m127.0.0.1 -n2 -c/opt/spacecurve/scdb/1.2.0.0-202_c0ed0_HEAD_release/conf//worker.properties -d/var/opt/spacecurve/scdb/data/node_2/engine_0
 [23222] exited /opt/spacecurve/scdb/1.2.0.0-202_c0ed0_HEAD_release/bin//master -y -m127.0.0.1 -n0 -c/opt/spacecurve/scdb/1.2.0.0-202_c0ed0_HEAD_release/conf//master.properties -d/var/opt/spacecurve/scdb/data/node_0
 ==> OK
-# output elided
-...
+... output elided ...
 schema.hiveresult
 schema.grid
 schema.earthquakes
 ```
 
 You should see the three schema's above. To confirm that the earthquake and grid
-data is in SpaceCurve you can either
+data is in SpaceCurve you can either, from within SpaceCurve VM,
+
+Type:
 
 ```
-# from within the SpaceCurve VM
 curl -s 'http://localhost:8080/ArcGIS/select%20*%20from%20schema.earthquakes;' | wc -l
-# should print 17939
+```
+
+Output:
+
+```
+17939
 ```
 
 or load the url, http://<SPACECURVE IP>:8080/ArcGIS/schema/earthquakes in your browser.
 
 To view the first record (from inside the SCDB VM)
 
+Type:
+
 ```
 curl -s -H "Accept: application/noheader+json" 127.1:8080/ArcGIS/schema/earthquakes | jq "." | more
+```
+
+Output:
+
+```{.json}
 {
   "geometry": {
     "type": "Point",
@@ -246,7 +387,7 @@ curl -s -H "Accept: application/noheader+json" 127.1:8080/ArcGIS/schema/earthqua
 
 # Hadoop Data Load and Job
 
-We will ssh into the Hortonworks VM, unpack the archive and run the script
+We will [SSH](http://en.wikipedia.org/wiki/Secure_Shell) into the Hortonworks VM, unpack the archive and run the script
 which will:
 
 1. Sync data from SpaceCurve to HDFS using a MapReduce job
@@ -256,14 +397,23 @@ which will:
 
 ## Login and Unpack
 
-```
-ssh hduser@<HORTONWORKS IP>
-```
+Login to the HortonWorks VM (from now on HortonWorks)
 
-Unpack the archive
+Type:
 
 ```
-[hduser@sandbox ~]$ tar xvf hadoop-spacecurve-sync.tar.gz 
+ssh hduser@<HortonWorks>
+```
+
+To unpack the archive, type:
+
+```
+$ tar xvf hadoop-spacecurve-sync.tar.gz 
+```
+
+Output:
+
+```
 hadoop-spacecurve-sync/
 hadoop-spacecurve-sync/1-dfs-sync/
 hadoop-spacecurve-sync/2-hive-job/
@@ -316,11 +466,14 @@ hadoop-spacecurve-sync/1-dfs-sync/control-dir/pp.txt
 ```
 
 Configure the IP address for the SpaceCurve database so that Hadoop can read
-and write data to it. 
+and write data to it by editing the file `SPACECURVE_IP.sh` in the newly
+unpacked archive.
+
+Type:
 
 ```
-cd hadoop-spacecurve-sync
-nano SPACECURVE_IP.sh
+$ cd hadoop-spacecurve-sync
+$ nano SPACECURVE_IP.sh
 ```
 
 ![edit spacecurve ip](images/nano-spacecurve-ip.png)
@@ -328,10 +481,17 @@ nano SPACECURVE_IP.sh
 Reconfirm that the Hortonworks VM can talk to the SpaceCurve VM by querying the
 earthquakes table. The command should work verbatim.
 
+Type:
+
 ```
-source SPACECURVE_IP.sh
-curl -s "http://$SPACECURVE_IP:8080/ArcGIS/select%20*%20from%20schema.earthquakes;" | wc -l
-; ## 17939
+$ source SPACECURVE_IP.sh
+$ curl -s "http://$SPACECURVE_IP:8080/ArcGIS/select%20*%20from%20schema.earthquakes;" | wc -l
+```
+
+Output:
+
+```
+17939
 ```
 
 ## SpaceCurve HDFS Sync

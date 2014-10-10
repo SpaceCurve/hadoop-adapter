@@ -1,5 +1,9 @@
 # replace these with the IPs or names of your VMs
-HADOOP_ADDR=sandbox.hortonworks.com
+# HADOOP_ADDR=sandbox.hortonworks.com
+# optionally make an entry for sandbox.hortonworks.com in your
+# local /etc/hosts file, this makes viewing the web admin
+# for Hadoop possible.
+HADOOP_ADDR=192.168.217.133
 SPACECURVE_ADDR=spacecurve
 
 package:
