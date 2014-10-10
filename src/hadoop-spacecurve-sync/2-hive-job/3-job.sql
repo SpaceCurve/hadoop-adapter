@@ -1,10 +1,15 @@
-drop table if exists job2_earthquake_agg;
+DROP TABLE IF EXISTS job2_earthquake_agg;
 
-create table job2_earthquake_agg as
-SELECT name, ST_AsGeoJson(boundaryshape) as geojson_boundary, count(*) cnt FROM counties
-JOIN earthquake
-WHERE ST_Contains(counties.boundaryshape, earthquake.shape)
-GROUP BY counties.name, counties.boundaryshape
-ORDER BY cnt desc;
+CREATE TABLE job2_earthquake_agg AS
+SELECT
+    name, ST_AsGeoJson(boundaryshape) AS geojson_boundary, count(*) cnt FROM counties
+JOIN
+    earthquake
+WHERE
+    ST_Contains(counties.boundaryshape, earthquake.shape)
+GROUP BY
+    counties.name, counties.boundaryshape
+ORDER BY
+    cnt DESC;
 
-select name,cnt from job2_earthquake_agg;
+SELECT name,cnt FROM job2_earthquake_agg;

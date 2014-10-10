@@ -1,4 +1,5 @@
-drop table earthquake;
+DROP TABLE IF EXISTS earthquake;
+
 CREATE EXTERNAL TABLE IF NOT EXISTS earthquake (
     time string,
     place string,

@@ -8,11 +8,11 @@ create temporary function ST_AsText as 'com.esri.hadoop.hive.ST_AsText';
 create temporary function ST_Within as 'com.esri.hadoop.hive.ST_Within';
 create temporary function ST_AsGeoJson as 'com.esri.hadoop.hive.ST_AsGeoJson';
 
-drop table counties;
+DROP TABLE IF EXISTS counties;
 
 CREATE EXTERNAL TABLE IF NOT EXISTS counties (Area string, Perimeter string, State string, County string, Name string, BoundaryShape binary)                                         
 ROW FORMAT SERDE 'com.esri.hadoop.hive.serde.JsonSerde'              
 STORED AS INPUTFORMAT 'com.esri.json.hadoop.EnclosedJsonInputFormat'
 OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat';
 
-load data local inpath 'california-counties.json' overwrite into table counties;
+LOAD DATA LOCAL INPATH 'california-counties.json' OVERWRITE INTO TABLE counties;
