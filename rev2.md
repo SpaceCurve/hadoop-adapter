@@ -1,10 +1,4 @@
-% HDFS SpaceCurve Bidirectional Sync
-% SpaceCurve
-
 # Front Matter
-
-**TK: This document is very much a work in progress. TK is used as a search
-canary for items that been to be addressed before publication**
 
 This document outlines the mechanics of export/import between SpaceCurve and
 Hadoop so that the SpaceCurve data can be accessible to the Hadoop stack.
