@@ -42,6 +42,11 @@ e2c67481932ec9fb6ec3c0faadc004f715c4eef4  gdal-1.11.1.tar.gz
 
 ## Install Steps
 
+We will install the build tools and `libtiff` via `yum` the Centos package manager,
+then create a new user account to run IPython. [GeoTIFF](http://trac.osgeo.org/geotiff/)
+and [GDAL](http://www.gdal.org/) will be installed out-of-tree as dependencies
+for [GeoPandas](http://geopandas.org/).
+
 1. $ `yum groupinstall "Development Tools"` (as root)
 
     This pulls in gcc,gfortran,make,etc. for building `libgeotiff` and `gdal`.
@@ -96,7 +101,7 @@ e2c67481932ec9fb6ec3c0faadc004f715c4eef4  gdal-1.11.1.tar.gz
         $ which pip
         ~/anaconda/bin/pip
 
-8. Install PySAL and GeoPandas
+8. Install [PySAL](https://pysal.readthedocs.org/en/v1.8/#) and GeoPandas
 
         $ pip install fiona PySAL
         $ pip install geopandas
