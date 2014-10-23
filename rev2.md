@@ -1,4 +1,4 @@
-# Front Matter
+# SpaceCurve Hadoop Sync
 
 This document outlines the mechanics of export/import between SpaceCurve and
 Hadoop so that the SpaceCurve data can be accessible to the Hadoop stack.
@@ -58,11 +58,11 @@ capabilities of SpaceCurve and HDFS. For small data sets of less than a
 gigabyte this technique is not needed as the startup costs for the MapReduce
 job are larger than the copy itself. While we are using a reduced data set for
 expediency, we will be using a parallel [MapReduce job](src/hadoop-spacecurve-sync/1-dfs-sync)
-for exporting data from SpaceCurve.
+for exporting data from SpaceCurve to demonstrate the technique.
 
 Once the data resides on HDFS we will configure Hive tables for [California
 counties](src/hadoop-spacecurve-sync/2-hive-job/1-esri-setup.sql) and
-[Earthquakes](src/hadoop-spacecurve-sync/2-hive-job/2-earthquake.sql) that
+[earthquakes](src/hadoop-spacecurve-sync/2-hive-job/2-earthquake.sql) that
 create a SQL structure over the underlying data using [GeoJsonSerde](https://github.com/SpaceCurve/spatial-framework-for-hadoop/blob/spacecurve-geojson-serdes/hive/src/main/java/com/esri/hadoop/hive/serde/GeoJsonSerde.java)
 to allow us to use the raw GeoJSON returned from SpaceCurve.
 
@@ -85,7 +85,7 @@ GIS functions:
 * ST_Point
 * ST_Contains
 * ST_AsText
-* [ST_Within](http://postgis.org/docs/ST_Within.html)
+* ST_Within
 * ST_AsGeoJson
 
 Configured in this way, Hive with the ESRI UDFs feels a lot like SpaceCurve or
@@ -94,20 +94,29 @@ PostGIS.
 Once the code and the data has been configured in Hive, the query looks like any
 other SQL GIS query, [hadoop-spacecurve-sync/2-hive-job/3-job.sql](src/hadoop-spacecurve-sync/2-hive-job/3-job.sql)
 
-```
-create table job2_earthquake_agg as
-SELECT name, ST_AsGeoJson(boundaryshape) as geojson_boundary, count(*) cnt FROM counties
-JOIN earthquake
-WHERE ST_Contains(counties.boundaryshape, earthquake.shape)
-GROUP BY counties.name, counties.boundaryshape
-ORDER BY cnt desc;
+```{.sql}
+DROP TABLE IF EXISTS job2_earthquake_agg;
+
+CREATE TABLE job2_earthquake_agg AS
+SELECT
+    name, ST_AsGeoJson(boundaryshape) AS geojson_boundary, count(*) cnt FROM counties
+JOIN
+    earthquake
+WHERE
+    ST_Contains(counties.boundaryshape, earthquake.shape)
+GROUP BY
+    counties.name, counties.boundaryshape
+ORDER BY
+    cnt DESC;
+
+SELECT name,cnt FROM job2_earthquake_agg;
 ```
 
 The above query finds the count of earthquakes within each California county.
 We use the [county data](https://github.com/Esri/gis-tools-for-hadoop/blob/master/samples/data/counties-data/california-counties.json) from
 the [esri gis tools for hadoop](https://github.com/Esri/gis-tools-for-hadoop) saving the
 result to a Hive table on HDFS @ `hdfs:///apps/hive/warehouse/job2_earthquake_agg/000000_0`.
-By using `ST_AsGeoJson` from within the query, we have access to an ASCII
+By using `ST_AsGeoJson` from within the query, we have access to an textual
 representation of the geometry instead internal binary format used by the
 ESRI tools making it much easier to generate valid GeoJSON.
 
@@ -121,8 +130,6 @@ could have constructed an analogous job to the [streaming mapreduce job](src/had
 used to copy data into HDFS, only with the source and the destinations reversed.
 
 ## VM Setup
-
-**TK: possibly extract this to another doc**
 
 In this demo we will be run using two VMs:
 
@@ -183,11 +190,12 @@ Running the bare command `hdfs dfs -ls` should not return an error.
 
 ### Archive Generation and Sync
 
-The two archives are generated from the [src dir](src) is this repository via a Makefile.
-Once your VMs are up and you have their IP addresses, you can edit the [Makefile](src/Makefile)
-to point to your two VMs by replacing `HADOOP_ADDR` and `SPACECURVE_ADDR` with
-the names or IP addresses of your two VMs. You can find the IP address by logging
-into a VM, opening a terminal window (Applications->System Tools->Terminal)
+The two archives that run this tutorial are generated from the [src dir](src)
+in this repository via a [Makefile](src/Makefile) that packages and syncs the
+archives to the VMs. By setting `HADOOP_ADDR` and `SPACECURVE_ADDR` with the
+name or IP of the corresponding VM we can ensure that the archive gets sent
+to the correct location. You can find the IP address by logging into a VM, opening
+a terminal window (Applications->System Tools->Terminal)
 
 ![](images/centos-terminal.png)
 
@@ -254,7 +262,9 @@ existing database.
 2. Load in the earthquake data from the ~/VM data folder that already exists
 on your SpaceCurve QuickStart VM.
 
-3. Create a schema for the results from our Hadoop/Hive job.
+3. Load the Discrete Global Grid data
+
+4. Create a schema for the results from our Hadoop/Hive job.
 
 
 Type:
